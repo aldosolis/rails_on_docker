@@ -1,0 +1,45 @@
+version: "3.8"
+
+x-rails: &base
+  build:
+    context: .
+    dockerfile: ./Dockerfile
+    args:
+      RUBY_VERSION: ${RUBY_VERSION}
+      RAILS_VERSION: ${RAILS_VERSION}
+      APP_PATH: ${APP_PATH}
+
+services:
+  db:
+    image: postgres:12.3-alpine
+    volumes:
+      - db:/var/lib/postgresql/data
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    container_name: ${APP_NAME}_db
+
+  webapp:
+    <<: *base
+    stdin_open: true
+    tty: true
+    image: ${APP_NAME}_webapp:1.0
+    container_name: ${APP_NAME}_webapp
+    env_file:
+      - ./.env
+    environment:
+      DATABASE_URL: "postgres://postgres:${DB_PASSWORD}@db:5432/${APP_NAME}"
+    volumes:
+      - ./src:${APP_PATH}
+      - bundle:/usr/local/bundle
+    command: bundle exec rails server -b 0.0.0.0 -p 3000
+    ports:
+      - 3000:3000
+    depends_on:
+      - db
+
+volumes:
+  db:
+    name: ${APP_NAME}_db
+  bundle:
+    name: ${APP_NAME}_bundle
